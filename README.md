@@ -9,5 +9,3 @@ Models:  Folder for all ML models and descriptive work (such as visualizations).
 Utility: Folder for anything regarding data wrangling and other reusable code.
 
 Informational files can be kept in the main folder.
-
-Link to the original data: https://surfdrive.surf.nl/files/index.php/s/cOtybZSrYnojjvm
