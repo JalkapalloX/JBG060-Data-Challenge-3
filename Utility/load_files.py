@@ -110,13 +110,13 @@ class sdf:
     """
     def __init__(self, path):
         # Sewage area data
-        area_data = gpd.read_file(path + "/" + "Rioleringsdeelgebied.shp").to_crs({'init': 'epsg:4326'})
+        area_data = gpd.read_file(path + "/" + "Rioleringsdeelgebied.shp")
         area_data["area"] = area_data.area
         area_data = area_data[["RGDIDENT", "NAAMRGD", "RGDID", "area", "geometry"]]
         area_data.columns = ["sewer_system", "area_name", "area_ID", "area", "geometry"]
         
         # RG data
-        RG_data = gpd.read_file(path + "/" + "Rioolgemaal.shp").to_crs({'init': 'epsg:4326'})
+        RG_data = gpd.read_file(path + "/" + "Rioolgemaal.shp")
         RG_data = RG_data[["ZRE_ID", "ZREIDENT", "ZRW_ZRW_ID", "ZRGCAPA1",
                                "ZRE_ZRE_ID", "ZRGRGCAP",
                                "ZRGGANGL", "geometry"]]
@@ -124,17 +124,17 @@ class sdf:
                            "RG_name", "geometry"]
         
         # RWZI regions
-        RWZI_regions = gpd.read_file(path + "/" + "Zuiveringsregio.shp").to_crs({'init': 'epsg:4326'})
+        RWZI_regions = gpd.read_file(path + "/" + "Zuiveringsregio.shp")
         RWZI_regions = RWZI_regions[["GAGNAAM", "geometry"]]
         RWZI_regions.columns = ["RWZI_name", "geometry"]
         
         # RWZI data
-        RWZI_data = gpd.read_file(path + "/" + "RWZI.shp").to_crs({'init': 'epsg:4326'})
+        RWZI_data = gpd.read_file(path + "/" + "RWZI.shp")
         RWZI_data = RWZI_data[["ZRW_ID", "ZRWIDENT", "ZRWNAAM", "geometry"]]
         RWZI_data.columns = ["RWZI_ID", "RWZI_identifier", "RWZI_name", "geometry"]
         
         # Pipe data
-        pipe_data = gpd.read_file(path + "/" + "Leidingtrace.shp").to_crs({'init': 'epsg:4326'})
+        pipe_data = gpd.read_file(path + "/" + "Leidingtrace.shp")
         pipe_data = pipe_data[["LDG_ID", "IDENTIFICA", "TRACE_NAAM", "STATUS", "geometry"]]
         pipe_data.columns = ["LDG_ID", "LD_identifier", "LD_name", "status", "geometry"]
         
