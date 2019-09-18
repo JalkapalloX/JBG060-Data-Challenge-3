@@ -58,6 +58,7 @@ def get_rain_prediction(path, from_date=None, to_date=None):
     
     date_data = pd.concat([pred_date, start_date, end_date], axis=1)
     date_data.columns = ["pred", "start", "end"]
+    date_data.drop_duplicates(inplace=True)
     
     return date_data, data
 
