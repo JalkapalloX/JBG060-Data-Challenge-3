@@ -23,7 +23,7 @@ def reset_cumsum(lst, threshold=0, count=True):
     return pd.Series(output, index=lst.index)
 
 
-def summarize_rain_data(rain_data, area_data=None, village_code=None, dry_threshold=0):
+def summarize_rain_data(rain_data, area_data=None, village_code=None, dry_threshold=2.5):
     """
     Function to reshape rain data to be fit for the DWAAS analysis.
 
@@ -74,9 +74,10 @@ class measurement_analysis:
     plotting basic properties of the data fast, and creating the DWAAS table.
     """
     def __init__(self, flow_data, level_data, rain_data,
-                 min_dry_series=1, area_data=None, village_code=None, dry_threshold=0, max_interval=None):
+                 min_dry_series=1, area_data=None, village_code=None, dry_threshold=2.5, max_interval=None):
         # CLEAN DATA
         # Convert to datetime if necessary
+
         if flow_data["TimeStamp"].dtype != "<M8[ns]":
             flow_data["TimeStamp"] = pd.to_datetime(flow_data["TimeStamp"])
 
@@ -126,16 +127,6 @@ class measurement_analysis:
         self.area = area_data.loc[area_data["village_ID"] == village_code, "geometry"]\
                              .to_crs({"init": "epsg:3395"}).map(lambda p: p.area / 10**6).sum()
 
-        # Selects dates that are classified dry by function definition
-        dry_dates = self.rain_data.loc[self.rain_data["DrySeries"] >= self.dry_threshold, "Date"]
-        rainy_dates = self.rain_data.loc[self.rain_data["DrySeries"] == 0, "Date"]
-
-        # Create binary column whether day is classified as dry in flow data
-        self.flow_data["Dry"] = self.flow_data["TimeStamp"].apply(lambda i: i.date() in dry_dates.to_list()).astype(int)
-
-        # Create binary column whether day is classified as dry in level data
-        self.level_data["Dry"] = self.level_data["TimeStamp"].apply(lambda i: i.date() in dry_dates.to_list()).astype(int)
-
         # STORE DATA
         self.min_dry_series = min_dry_series
         self.area_data = area_data
@@ -146,6 +137,16 @@ class measurement_analysis:
         self.flow_data = flow_data
         self.level_data = level_data
         self.rain_data = rain_data
+
+        # Selects dates that are classified dry by function definition
+        dry_dates = self.rain_data.loc[self.rain_data["DrySeries"] >= self.dry_threshold, "Date"]
+        rainy_dates = self.rain_data.loc[self.rain_data["DrySeries"] == 0, "Date"]
+
+        # Create binary column whether day is classified as dry in flow data
+        self.flow_data["Dry"] = self.flow_data["TimeStamp"].apply(lambda i: i.date() in dry_dates.to_list()).astype(int)
+
+        # Create binary column whether day is classified as dry in level data
+        self.level_data["Dry"] = self.level_data["TimeStamp"].apply(lambda i: i.date() in dry_dates.to_list()).astype(int)
 
 
     def plot(self):
