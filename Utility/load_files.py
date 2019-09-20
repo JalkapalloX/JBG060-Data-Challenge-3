@@ -6,7 +6,6 @@ import os
 import sqlite3
 
 
-
 def get_measurements(path, convert_time=False):
     """
     Will read all measurement data from given path and store them in separate dataframes.
@@ -18,13 +17,13 @@ def get_measurements(path, convert_time=False):
     
     data = [pd.read_csv(path + "/" + i, sep = ";") for i in files]
     data =  pd.concat(data, sort = False, ignore_index = True)
-
+    
     data["RG_ID"] = data["Tagname"].str.slice(9,13).astype(int)
     data["Value"] = data["Value"].str.replace(",", ".").astype(float)
     data["DataQuality"] = (data["DataQuality"] == "Good").astype(int)
     if convert_time == True:
         data["TimeStamp"] = pd.to_datetime(data["TimeStamp"])
-
+        
     data = data[["Tagname", "RG_ID", "TimeStamp", "Value", "DataQuality"]]
     
     flow_data = data[data["Tagname"].str.contains("Debietmeting")].reset_index(drop = True)
@@ -45,6 +44,7 @@ def get_rain_prediction(path, from_date=None, to_date=None):
     ~~~~~~~~~~~~~~~~~~~~
     """
     files = os.listdir(path)
+    
     dates = pd.Series(pd.to_datetime([i.split("_")[3] for i in files]))
     
     if (from_date is not None) & (to_date is not None):
@@ -73,11 +73,13 @@ def get_rain(path, convert_time=False):
     """
     
     files = os.listdir(path)
+    
     data = [pd.read_csv(path + "/" + i, skiprows=2) for i in files]
     data =  pd.concat(data, sort = False, ignore_index = True)
     if convert_time == True:
         data["Begin"] = pd.to_datetime(data["Begin"])
         data["Eind"] = pd.to_datetime(data["Eind"])
+    
     data.rename({"Begin": "Start", "Eind": "End"}, axis=1, inplace = True)
     
     return data
@@ -92,7 +94,6 @@ def get_system_register(path):
     (!) This is almost the same data as the Rioleringsdeelgebied.shp file provides and it
     is recommended to use this one instead, see the class sdf.
     """
-
     
     system_data = pd.read_excel(path + "/" + "20180717_dump riodat rioleringsdeelgebieden.xlsx", skiprows=9)
     system_data = system_data[["Volgnr", "Code", "Naam / lokatie", "RWZI"]]
@@ -115,37 +116,37 @@ class sdf:
         area_data["area"] = area_data.area
         area_data = area_data[["RGDIDENT", "NAAMRGD", "RGDID", "area", "geometry"]]
         area_data.columns = ["sewer_system", "area_name", "area_ID", "area", "geometry"]
-
+        
         # RG data
         RG_data = gpd.read_file(path + "/" + "Rioolgemaal.shp")
         RG_data = RG_data[["ZRE_ID", "ZREIDENT", "ZRW_ZRW_ID", "ZRGCAPA1",
                                "ZRE_ZRE_ID", "ZRGRGCAP",
                                "ZRGGANGL", "geometry"]]
         RG_data.columns = ["unit_ID", "RG_ID", "RWZI_ID", "min_capacity", "to_unit_ID", "max_capacity",
-                           "RG_name", "geometry"]<<<<<<< Development-(Blazej)
-
+                           "RG_name", "geometry"]
+        
         # RWZI regions
         RWZI_regions = gpd.read_file(path + "/" + "Zuiveringsregio.shp")
         RWZI_regions = RWZI_regions[["GAGNAAM", "geometry"]]
         RWZI_regions.columns = ["RWZI_name", "geometry"]
-
+        
         # RWZI data
         RWZI_data = gpd.read_file(path + "/" + "RWZI.shp")
         RWZI_data = RWZI_data[["ZRW_ID", "ZRWIDENT", "ZRWNAAM", "geometry"]]
         RWZI_data.columns = ["RWZI_ID", "RWZI_identifier", "RWZI_name", "geometry"]
-
+        
         # Pipe data
         pipe_data = gpd.read_file(path + "/" + "Leidingtrace.shp")
         pipe_data = pipe_data[["LDG_ID", "IDENTIFICA", "TRACE_NAAM", "STATUS", "geometry"]]
         pipe_data.columns = ["LDG_ID", "LD_identifier", "LD_name", "status", "geometry"]
-
+        
+        
         # Store data in class
         self.area_data = area_data
         self.RG_data = RG_data
         self.RWZI_regions = RWZI_regions
         self.RWZI_data = RWZI_data
         self.pipe_data = pipe_data
-
 
 
 def create_sql_db(path=None, data_path=None,
@@ -216,4 +217,3 @@ def create_sql_db(path=None, data_path=None,
             if rain_path is not None:
                 rain_data = get_rain(rain_path + "/sewer_data/rain_timeseries")
                 rain_data.to_sql("rain", conn, if_exists="replace", index=False)
-
