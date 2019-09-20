@@ -20,13 +20,10 @@ def reset_cumsum(lst, threshold=0, count=True):
         else:
             output = output + [0 if lst[i] >= threshold else output[i-1] + lst[i]]
 
-    return pd.Series(output, index=lst.index)
-
-
-def summarize_rain_data(rain_data, area_data=None, village_code=None, dry_threshold=2.5):
+def summarize_rain_data(rain_data, area_data=None, village_code=None, dry_threshold=0):
     """
     Function to reshape rain data to be fit for the DWAAS analysis.
-
+    
     ~~~~~ INPUT  ~~~~~
     rain_data:     File as gathered by load_files.get_rain(...)
     area_data:     File as gathered by load_files.sdf(...).area_data
@@ -44,7 +41,7 @@ def summarize_rain_data(rain_data, area_data=None, village_code=None, dry_thresh
     # Convert to datetime if necessary
     if rain_data["Start"].dtype != "<M8[ns]":
             rain_data["Start"] = pd.to_datetime(rain_data["Start"])
-
+    
     # Sort data by time because of it being possibly unordered
     rain_data.sort_values("Start", inplace=True)
     rain_data.reset_index(drop=True, inplace=True)
@@ -54,7 +51,6 @@ def summarize_rain_data(rain_data, area_data=None, village_code=None, dry_thresh
         area_data["village_ID"] = area_data["sewer_system"].str.slice(4,7)
         area_data = area_data.loc[area_data["village_ID"] == village_code]
         areas = area_data["area_name"][area_data["area_name"].apply(lambda i: i in rain_data.columns)].to_list()
-
         rain_data = rain_data.loc[:, ["Start", "End"] + areas]
 
     # Create date column and sum up rain measurements over all area
@@ -64,6 +60,8 @@ def summarize_rain_data(rain_data, area_data=None, village_code=None, dry_thresh
     # Sum measurements by date and create dry-series column
     rain_data = rain_data.groupby("Date")["Total"].sum().reset_index(drop=False)
     rain_data["DrySeries"] = reset_cumsum(rain_data["Total"], dry_threshold)
+    rain_data = rain_data.loc[:, ["Start", "End"] + areas]
+    
 
     return rain_data
 
@@ -138,6 +136,7 @@ class measurement_analysis:
         self.level_data = level_data
         self.rain_data = rain_data
 
+
         # Selects dates that are classified dry by function definition
         dry_dates = self.rain_data.loc[self.rain_data["DrySeries"] >= self.dry_threshold, "Date"]
         rainy_dates = self.rain_data.loc[self.rain_data["DrySeries"] == 0, "Date"]
@@ -149,10 +148,11 @@ class measurement_analysis:
         self.level_data["Dry"] = self.level_data["TimeStamp"].apply(lambda i: i.date() in dry_dates.to_list()).astype(int)
 
 
+
     def plot(self):
         plt.figure(figsize=(14, 7))
-
-        # Plots flow (Y) vs. index (X)
+        
+        # Plots flow (Y) vs. index (X) 
         plt.subplot(4, 2, 1)
         flow = self.flow_data["Value"].plot()
         # Plots level (Y) vs. index (X)
@@ -182,10 +182,8 @@ class measurement_analysis:
         # Plots rainfall (Y) vs. date (X)
         plt.subplot(4, 2, 8)
         self.rain_data.set_index("Date")["Total"].plot()
-
         plt.tight_layout()
         plt.show()
-
 
     def DWAAS_HAAS(self):
         # CREATES THE DWAAS TABLE COMPARING THEORETICAL DWF AGAINST ACTUAL VALUES
@@ -193,11 +191,13 @@ class measurement_analysis:
         dry_dates = self.rain_data.loc[self.rain_data["DrySeries"] >= self.dry_threshold, "Date"]
         rainy_dates = self.rain_data.loc[self.rain_data["DrySeries"] == 0, "Date"]
 
+
         # Create binary column whether day is classified as dry
         self.flow_data["Dry"] = self.flow_data["TimeStamp"].apply(lambda i: i.date() in dry_dates.to_list()).astype(int)
 
         # Select only flow from dry days
         dry_flow = self.flow_data.loc[self.flow_data["Dry"] == 1]
+
 
         # Measure Names
         measure_names = ["Theoretical DWF (Q80)",
@@ -224,8 +224,9 @@ class measurement_analysis:
                              measures[4] / measures[0],
                              measures[5] / measures[0]
                             ]
-
+        
         # Sums up data in single data frame
         DWAAS_table1 = pd.DataFrame({"Name": measure_names, "Value": measures, "Rel. Value": relative_measures})
-
+        
         return DWAAS_table1
+
