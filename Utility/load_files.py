@@ -3,6 +3,7 @@ import numpy as np
 import datetime
 import geopandas as gpd
 import os
+import sqlite3
 
 
 def get_measurements(path, convert_time=False):
