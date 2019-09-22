@@ -3,7 +3,6 @@ import numpy as np
 import datetime
 import geopandas as gpd
 import os
-import sqlite3
 
 
 def get_measurements(path, convert_time=False):
@@ -35,13 +34,16 @@ def get_measurements(path, convert_time=False):
     return flow_data, level_data
 
 
-def get_rain_prediction(path, from_date=None, to_date=None):
+def get_rain_prediction(path, from_date=None, to_date=None, reduce_grid=False):
     """
     Will read rain prediction data + dates from file names from given path and store those
     in separate dataframes.
     ~~~ EXAMPLE CALL ~~~
     pred_dates, pred_data = get_rain_prediction("C:/mypath/knmi....")
     ~~~~~~~~~~~~~~~~~~~~
+    
+    reduce_grid :    Skims down the data to the relevant area. Highly recommended if
+                     your PC runs <16GB RAM.
     """
     files = os.listdir(path)
     
@@ -55,11 +57,14 @@ def get_rain_prediction(path, from_date=None, to_date=None):
     start_date = pd.Series(pd.to_datetime([i.split("_")[3] for i in files]))
     end_date = pd.Series(pd.to_datetime([i.split("_")[4][:20] for i in files]))
     
-    data = np.array([np.loadtxt(path + "/" + i, skiprows=7) for i in files if ".aux" not in i])
+    if reduce_grid:                                            #Y: 51.830-51.321 X: 5.068-6.048
+        data = np.array([np.loadtxt(path + "/" + i, skiprows=7)[91:(195+1) ,101:(223+1)]
+                         for i in files if ".aux" not in i])
+    else:
+        data = np.array([np.loadtxt(path + "/" + i, skiprows=7) for i in files if ".aux" not in i])
     
     date_data = pd.concat([pred_date, start_date, end_date], axis=1)
     date_data.columns = ["pred", "start", "end"]
-    date_data.drop_duplicates(inplace=True)
     
     return date_data, data
 
