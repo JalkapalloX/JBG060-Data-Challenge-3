@@ -62,8 +62,8 @@ def summarize_rain_data(rain_data, area_data=None, village_code=None, dry_thresh
     rain_data["Total"] = rain_data.iloc[:, 2:].mean(axis=1)
 
     # Sum measurements by date and create dry-series column
-    #rain_data = rain_data.groupby("Date")["Total"].sum().reset_index(drop=False)
-    #rain_data["DrySeries"] = reset_cumsum(rain_data["Total"], dry_threshold)
+    rain_data = rain_data.groupby("Date")["Total"].sum().reset_index(drop=False)
+    rain_data["DrySeries"] = reset_cumsum(rain_data["Total"], dry_threshold)
 
     return rain_data
 
