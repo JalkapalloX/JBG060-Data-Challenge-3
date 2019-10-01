@@ -47,7 +47,7 @@ def get_rain_prediction(path, from_date=None, to_date=None, reduce_grid=False):
     """
     files = os.listdir(path)
     
-    dates = pd.Series(pd.to_datetime([i.split("_")[3] for i in files]))
+    dates = pd.Series(pd.to_datetime([i.split("_")[3] for i in files if ".aux" not in i]))
     
     if (from_date is not None) & (to_date is not None):
         boolean_ = (dates >= pd.to_datetime(from_date)) & (dates < pd.to_datetime(to_date))
