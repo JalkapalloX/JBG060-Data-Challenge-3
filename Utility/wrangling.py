@@ -99,6 +99,22 @@ def level_group(lst):
     return pd.Series(output, index=lst.index)
 
 
+def cell_index(x, y, reduced=False):
+    x_space = np.linspace(start = -0.0185, stop = -0.0185 + 300*0.037, num = 301)
+    y_space = np.linspace(start = 48.9885, stop = 48.9885 + 300*0.023, num = 301)
+
+    x_out = np.where(x >= x_space)[0][-1]
+    y_out = 300 - np.where(y <= y_space)[0][0]
+
+    if reduced:
+        x_out = x_out - 91
+        y_out = y_out - 101
+
+    return x_out, y_out
+
+vec_cell_index = np.vectorize(cell_index)
+
+
 def summarize_rain_data(rain_data, area_data=None, village_code=None, dry_threshold=0):
     """
     Function to reshape rain data to be fit for the DWAAS analysis.
