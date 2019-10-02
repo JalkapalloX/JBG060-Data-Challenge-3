@@ -53,9 +53,9 @@ def get_rain_prediction(path, from_date=None, to_date=None, reduce_grid=False):
         boolean_ = (dates >= pd.to_datetime(from_date)) & (dates < pd.to_datetime(to_date))
         files = pd.Series(files)[boolean_]
     
-    pred_date = pd.Series(pd.to_datetime([i.split("_")[2] for i in files]))
-    start_date = pd.Series(pd.to_datetime([i.split("_")[3] for i in files]))
-    end_date = pd.Series(pd.to_datetime([i.split("_")[4][:20] for i in files]))
+    pred_date = pd.Series(pd.to_datetime([i.split("_")[2] for i in files if ".aux" not in i]))
+    start_date = pd.Series(pd.to_datetime([i.split("_")[3] for i in files if ".aux" not in i]))
+    end_date = pd.Series(pd.to_datetime([i.split("_")[4][:20] for i in files if ".aux" not in i]))
     
     if reduce_grid:                                            #Y: 51.830-51.321 X: 5.068-6.048
         data = np.array([np.loadtxt(path + "/" + i, skiprows=7)[91:(195+1) ,101:(223+1)]
