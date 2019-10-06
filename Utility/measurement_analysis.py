@@ -5,67 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import datetime
-
-
-def reset_cumsum(lst, threshold=0, count=True):
-    """
-    Cummulative sum with reset at any value greater than the threshold.
-    Count being true means that the output will be a cummulative count (1-2-3-...)
-    otherwise its a normal cummulative sum.
-    """
-    output = [0]
-    for i in range(1, len(lst)):
-        if count:
-            output = output + [0 if lst[i] >= threshold else output[i-1] + 1]
-        else:
-            output = output + [0 if lst[i] >= threshold else output[i-1] + lst[i]]
-
-    return pd.Series(output, index=lst.index)
-
-
-def summarize_rain_data(rain_data, area_data=None, village_code=None, dry_threshold=2.5):
-    """
-    Function to reshape rain data to be fit for the DWAAS analysis.
-
-    ~~~~~ INPUT  ~~~~~
-    rain_data:     File as gathered by load_files.get_rain(...)
-    area_data:     File as gathered by load_files.sdf(...).area_data
-    village_code:  Identifier of the pump (e.g. 'DRU' for Drunen)
-    dry_threshold: Minimum average rain per hour in the area that counts as wet
-                   (2.5 recommended)
-
-    ~~~~~ OUTPUT ~~~~~
-    A data frame with the columns
-    Date :     Date of measurement
-    Total:     Average rainfall measurement in the area (unweighted by area size)
-    DrySeries: Number of days since last rainfall.
-    """
-
-    # Convert to datetime if necessary
-    if rain_data["Start"].dtype != "<M8[ns]":
-            rain_data["Start"] = pd.to_datetime(rain_data["Start"])
-
-    # Sort data by time because of it being possibly unordered
-    rain_data.sort_values("Start", inplace=True)
-    rain_data.reset_index(drop=True, inplace=True)
-
-    # Selects only data from certain right village_code
-    if village_code is not None:
-        area_data["village_ID"] = area_data["sewer_system"].str.slice(4,7)
-        area_data = area_data.loc[area_data["village_ID"] == village_code]
-        areas = area_data["area_name"][area_data["area_name"].apply(lambda i: i in rain_data.columns)].to_list()
-
-        rain_data = rain_data.loc[:, ["Start", "End"] + areas]
-
-    # Create date column and sum up rain measurements over all area
-    rain_data["Date"] = rain_data["Start"].apply(lambda i: i.date())
-    rain_data["Total"] = rain_data.iloc[:, 2:].mean(axis=1)
-
-    # Sum measurements by date and create dry-series column
-    rain_data = rain_data.groupby("Date")["Total"].sum().reset_index(drop=False)
-    rain_data["DrySeries"] = reset_cumsum(rain_data["Total"], dry_threshold)
-
-    return rain_data
+import utility
+import wrangling
 
 
 class measurement_analysis:
@@ -74,28 +15,14 @@ class measurement_analysis:
     plotting basic properties of the data fast, and creating the DWAAS table.
     """
     def __init__(self, flow_data, level_data, rain_data,
-                 min_dry_series=1, area_data=None, village_code=None, dry_threshold=2.5, max_interval=None):
+                 min_dry_series=1, area_data=None, village_code=None, dry_threshold=0, max_interval=None):
         # CLEAN DATA
-        # Convert to datetime if necessary
-
-        if flow_data["TimeStamp"].dtype != "<M8[ns]":
-            flow_data["TimeStamp"] = pd.to_datetime(flow_data["TimeStamp"])
-
-        # Sort data by time because of it being possibly unordered
-        flow_data.sort_values("TimeStamp", inplace=True)
-        flow_data.reset_index(drop=True, inplace=True)
-
-        # Convert to datetime if necessary
-        if level_data["TimeStamp"].dtype != "<M8[ns]":
-            level_data["TimeStamp"] = pd.to_datetime(level_data["TimeStamp"])
-
-        # Sort data by time because of it being possibly unordered
-        level_data.sort_values("TimeStamp", inplace=True)
-        level_data.reset_index(drop=True, inplace=True)
+        flow_data = wrangling.clean_mes_data(flow_data)
+        level_data = wrangling.clean_mes_data(level_data)
 
         # Check if rain_data is already summarized
         if not all(i in rain_data.columns for i in ['Date', 'Total', 'DrySeries']):
-            rain_data = summarize_rain_data(rain_data, area_data, village_code, dry_threshold)
+            rain_data = wrangling.summarize_rain_data(rain_data, area_data, village_code, dry_threshold)
 
         # Adding basic variables to the data
         flow_data["Date"] = flow_data["TimeStamp"].apply(lambda i: i.date())
@@ -137,16 +64,6 @@ class measurement_analysis:
         self.flow_data = flow_data
         self.level_data = level_data
         self.rain_data = rain_data
-
-        # Selects dates that are classified dry by function definition
-        dry_dates = self.rain_data.loc[self.rain_data["DrySeries"] >= self.dry_threshold, "Date"]
-        rainy_dates = self.rain_data.loc[self.rain_data["DrySeries"] == 0, "Date"]
-
-        # Create binary column whether day is classified as dry in flow data
-        self.flow_data["Dry"] = self.flow_data["TimeStamp"].apply(lambda i: i.date() in dry_dates.to_list()).astype(int)
-
-        # Create binary column whether day is classified as dry in level data
-        self.level_data["Dry"] = self.level_data["TimeStamp"].apply(lambda i: i.date() in dry_dates.to_list()).astype(int)
 
 
     def plot(self):
