@@ -32,6 +32,21 @@ def merge_flow_level(flow_data, level_data):
                          .reset_index(drop=False).sort_values("TimeStamp").reset_index(drop=True)
     level_data = level_data.set_index("TimeStamp").reindex(unique_timestamps)\
                            .reset_index(drop=False).sort_values("TimeStamp").reset_index(drop=True)
+    # Adding basic variables to the flow data
+    flow_data["Date"] = flow_data["TimeStamp"].apply(lambda i: i.date())
+    flow_data["Hour"] = flow_data["TimeStamp"].apply(lambda i: i.hour)
+    flow_data["Month"] = flow_data["Date"].apply(lambda i: i.month)
+    flow_data["Weekend"] = flow_data["Date"].apply(lambda i: int(i.weekday() >= 5))
+    flow_data["TimeSpan"] = flow_data["TimeStamp"].diff(1).apply(lambda i: i.seconds).fillna(5)
+    flow_data["Freq"] = 1 / flow_data["TimeSpan"]
+
+    # Adding basic variables to the level data
+    level_data["Date"] = level_data["TimeStamp"].apply(lambda i: i.date())
+    level_data["Hour"] = level_data["TimeStamp"].apply(lambda i: i.hour)
+    level_data["Month"] = level_data["Date"].apply(lambda i: i.month)
+    level_data["Weekend"] = level_data["Date"].apply(lambda i: int(i.weekday() >= 5))
+    level_data["TimeSpan"] = level_data["TimeStamp"].diff(1).apply(lambda i: i.seconds)
+    level_data["Freq"] = 1 / level_data["TimeSpan"]
 
     return flow_data, level_data
 
