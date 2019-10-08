@@ -56,7 +56,7 @@ def load_all_pumps(path, convert_time=False):
     
     # OLD TYPE FLOW AND LEVEL VALUES FOR HAARSTEEG AND DRUNEN
     if ("RG8150" in path) or ("RG8170" in path):
-        return lf.get_measurements(path, convert_time=convert_time)
+        return get_measurements(path, convert_time=convert_time)
         
     
     # NEW TYPE FLOW AND LEVEL VALUES FOR HAARSTEEG AND BOKHOVEN
