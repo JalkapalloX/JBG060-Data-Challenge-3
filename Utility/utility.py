@@ -1,3 +1,6 @@
+import pandas as pd
+import numpy as np
+
 def reset_cumsum(lst, threshold=0, count=True):
     """
     Cummulative sum with reset at any value greater than the threshold.
@@ -15,6 +18,11 @@ def reset_cumsum(lst, threshold=0, count=True):
 
 
 def search_prior_indices(lst, adjacent_lst):
+    """
+    lst - a list of NA indices
+    adjacent_lst - a list of NON-NA indices
+    """
+
     prior = []
 
     iter_adjacent_lst = iter(adjacent_lst)
@@ -22,8 +30,8 @@ def search_prior_indices(lst, adjacent_lst):
     adj_index = next(iter_adjacent_lst) # current non_na_index
     prior_adj_index = -1
 
-    for i in lst:
-        if adj_index > i:
+    for i in lst: # for every na index
+        if adj_index > i: # if it is before adjacent non-na index
             prior += [prior_adj_index]
         else:
             while adj_index < i:
