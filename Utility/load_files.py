@@ -3,6 +3,16 @@ import numpy as np
 import datetime
 import geopandas as gpd
 import os
+import pickle
+
+
+pump_to_id_dict = {"Drunen": 8150,
+                   "Haarsteeg": 8170,
+                   "Oude Engelenseweg": 401,
+                   "Helftheuvelweg": 301,
+                   "Engelerschans": 201,
+                   "De Rompert": 501,
+                   "Maaspoort": 501}
 
 
 def get_measurements(path, convert_time=False):
@@ -21,7 +31,7 @@ def get_measurements(path, convert_time=False):
     data["Value"] = data["Value"].str.replace(",", ".").astype(float)
     data["DataQuality"] = (data["DataQuality"] == "Good").astype(int)
     if convert_time == True:
-        data["TimeStamp"] = pd.to_datetime(data["TimeStamp"])
+        data["TimeStamp"] = pd.to_datetime(data["TimeStamp"], format="%d-%m-%Y %H:%M:%S")
         
     data = data[["Tagname", "RG_ID", "TimeStamp", "Value", "DataQuality"]]
     
@@ -32,6 +42,97 @@ def get_measurements(path, convert_time=False):
     level_data.drop("Tagname", axis=1, inplace=True)
     
     return flow_data, level_data
+
+
+def load_all_pumps(path, convert_time=False):
+    """
+    Will read all measurement data from given path and store them in separate dataframes.
+    The format of all data sources is standardized.
+    ~~~ EXAMPLE CALL ~~~
+    level_bokhoven = load_all_pumps(path+"Data 1/sewer_data/data_pump/RG8180_L0")
+    ~~~~~~~~~~~~~~~~~~~~
+    """
+    files = os.listdir(path)
+    
+    # OLD TYPE FLOW AND LEVEL VALUES FOR HAARSTEEG AND DRUNEN
+    if ("RG8150" in path) or ("RG8170" in path):
+        return get_measurements(path, convert_time=convert_time)
+        
+    
+    # NEW TYPE FLOW AND LEVEL VALUES FOR HAARSTEEG AND BOKHOVEN
+    if ("RG8180_L0" in path) or ("RG8180_Q0" in path) or ("rg8170_N99" in path) or ("rg8170_99" in path):
+        data = [pd.read_csv(path + "/" + i, sep = ",") for i in files if ".csv" in i]
+        data =  pd.concat(data, sort = False, ignore_index = True)
+        
+        data["RG_ID"] = data["historianTagnummer"].str.slice(9,13).astype(int)
+        data["Value"] = data["hstWaarde"]
+        
+        data["DataQuality"] = (data["historianKwaliteit"] == 100).astype(int)
+        
+        if convert_time == True:
+            data["datumBeginMeting"] = pd.to_datetime(data["datumBeginMeting"]).dt.strftime("%d-%m-%Y %H:%M:%S")
+        
+        data.rename(columns={"datumBeginMeting": "TimeStamp"}, inplace=True)
+        
+        return data[["RG_ID", "TimeStamp", "Value", "DataQuality"]]
+    
+    
+    # LEVEL VALUES OF SMALL PUMPS
+    if "sewer_data_db/data_pump_level" in path:
+        data = [pd.read_csv(path + "/" + i, sep = ";") for i in files if ".csv" in i]
+        data =  pd.concat(data, sort = False, ignore_index = True)
+        
+        data.rename(columns={"002: Oude Engelenseweg Niveau actueel (1&2)(cm)": "Oude Engelenseweg",
+                             "003: Helftheuvelweg Niveau (cm)": "Helftheuvelweg",
+                             "004: Engelerschans Niveau trend niveau DWA(cm)": "Engelerschans",
+                             "005: De Rompert Niveau (cm)": "De Rompert",
+                             "006: Maaspoort Niveau actueel (1&2)(cm)": "Maaspoort"}, inplace=True)
+
+        data['TimeStamp'] = data['Datum'] + " " + data['Tijd']
+        
+        if convert_time == True:
+            data["TimeStamp"] = pd.to_datetime(data["TimeStamp"], format="%d-%m-%Y %H:%M:%S")
+
+        for i in ["Oude Engelenseweg", "Helftheuvelweg", "Engelerschans", "De Rompert", "Maaspoort"]:
+            data.loc[:, i] = data.loc[:, i].str.replace(",", ".").astype(float)
+        
+        data_len = len(data)
+        data = pd.concat([data[["TimeStamp", "Oude Engelenseweg"]].rename(columns={"Oude Engelenseweg": "Value"}),
+                           data[["TimeStamp", "Helftheuvelweg"]].rename(columns={"Helftheuvelweg": "Value"}),
+                           data[["TimeStamp", "Engelerschans"]].rename(columns={"Engelerschans": "Value"}),
+                           data[["TimeStamp", "De Rompert"]].rename(columns={"De Rompert": "Value"}),
+                           data[["TimeStamp", "Maaspoort"]].rename(columns={"Maaspoort": "Value"})],
+                          axis=0, ignore_index=True)
+
+        data["RG_ID"] = list(map(lambda i: pump_to_id_dict[i],
+                                 np.repeat(["Oude Engelenseweg", "Helftheuvelweg",
+                                            "Engelerschans", "De Rompert", "Maaspoort"], data_len)))
+        
+        return data
+    
+
+    # NEW TYPE FLOW OF WWTP AND SMALL PUMPS
+    if ("data_pump_flow" in path) or ("data_wwtp_flow" in path):
+        data = [pd.read_csv(path + "/" + i, sep = ",") for i in files if ".csv" in i]
+        data =  pd.concat(data, sort = False, ignore_index = True)
+
+        if "data_pump_flow" in path:
+            data["RG_ID"] = data["historianTagnummer"].str.slice(26,29).astype(int)
+        else:
+            if "1882" in path:
+                data["RG_ID"] = 1882
+            elif "1876" in path:
+                data["RG_ID"] = 1876
+            else:
+                data["RG_ID"] = 0
+            
+        data["Value"] = data["hstWaarde"]
+        data["DataQuality"] = (data["historianKwaliteit"] == 100).astype(int)
+
+        data["TimeStamp"] = pd.to_datetime(data["datumBeginMeting"]).dt.strftime('%d-%m-%Y %H:%M:%S')
+        data = data[["RG_ID", "TimeStamp", "Value", "DataQuality"]]
+        
+        return data
 
 
 def get_rain_prediction(path, from_date=None, to_date=None, reduce_grid=False):
@@ -82,8 +183,8 @@ def get_rain(path, convert_time=False):
     data = [pd.read_csv(path + "/" + i, skiprows=2) for i in files]
     data =  pd.concat(data, sort = False, ignore_index = True)
     if convert_time == True:
-        data["Begin"] = pd.to_datetime(data["Begin"])
-        data["Eind"] = pd.to_datetime(data["Eind"])
+        data["Begin"] = pd.to_datetime(data["Begin"], format="%d-%m-%Y %H:%M:%S")
+        data["Eind"] = pd.to_datetime(data["Eind"], format="%d-%m-%Y %H:%M:%S")
     
     data.rename({"Begin": "Start", "Eind": "End"}, axis=1, inplace = True)
     
@@ -222,3 +323,11 @@ def create_sql_db(path=None, data_path=None,
             if rain_path is not None:
                 rain_data = get_rain(rain_path + "/sewer_data/rain_timeseries")
                 rain_data.to_sql("rain", conn, if_exists="replace", index=False)
+
+
+class get_file:   
+    def save(self, obj, path):
+        pickle.dump(obj, open(path + ".p", "wb" ))
+    
+    def load(self, path):
+        return pickle.load(open(path + ".p", "rb" ))
