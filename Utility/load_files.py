@@ -4,6 +4,7 @@ import datetime
 import geopandas as gpd
 import os
 import pickle
+import utility
 
 
 pump_to_id_dict = {"Drunen": 8150,
@@ -78,7 +79,7 @@ def load_all_pumps(path, convert_time=False):
     
     
     # LEVEL VALUES OF SMALL PUMPS
-    if "sewer_data_db/data_pump_level" in path:
+    if "data_pump_level" in path:
         data = [pd.read_csv(path + "/" + i, sep = ";") for i in files if ".csv" in i]
         data =  pd.concat(data, sort = False, ignore_index = True)
         
@@ -331,3 +332,48 @@ class get_file:
     
     def load(self, path):
         return pickle.load(open(path + ".p", "rb" ))
+
+
+class get_db:
+    """
+    This class can be used to automatically detect data in a given folder
+    and transform it into a pickled file. This is done at initialization.
+    
+    ~~~~~ METHODS ~~~~~
+    -- __init__()
+    path           Location of the data.
+    folder_tags    Names of folders that should be found from location.
+    dump_path      Where to dump pickled files in.
+    
+    Returns None type object.
+    
+    -- load()
+    path           Where to load pickled files from.
+    tags           Names of pickled files.
+    
+    Returns tuple of data in order of tags.
+    
+    ~~~~~ EXAMPLE CALLS ~~~~~
+    get_db(path=r"D:\DC3", folder_tags=["RG8180_L0", "data_pump_level"]) # Creating pickles
+    data = get_db.load(path=r"D:\DC3\Full Project", tags=["RG8180_L0", "data_pump_level"])
+    """
+    def __init__(self, path: str=None, folder_tags: list=None, dump_path: str=None):
+        
+        # CREATE DIRECTORY IF IT DOESN'T EXIST
+        if dump_path is None:
+            dump_path=""
+        else:
+            directory = os.path.dirname(dump_path)
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+        
+        # GET FOLDER LOCATIONS OF TAGS
+        folder_locs = [utility.isolate_obj(utility.search_for(i, path, last_instance=True)) for i in folder_tags]
+        
+        # SAVE TAGGED DATA AS PICKLE
+        for i, j in zip(folder_locs, folder_tags):
+            data = load_all_pumps(i, convert_time=True)
+            get_file().save(obj=data, path=dump_path + j)
+    
+    def load(path: str, tags: list):
+        return tuple([get_file().load(path + "\\" + i) for i in tags])

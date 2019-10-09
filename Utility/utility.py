@@ -1,3 +1,5 @@
+import os
+
 def reset_cumsum(lst, threshold=0, count=True):
     """
     Cummulative sum with reset at any value greater than the threshold.
@@ -15,6 +17,10 @@ def reset_cumsum(lst, threshold=0, count=True):
 
 
 def search_prior_indices(lst, adjacent_lst):
+    """
+    For every object in lst, this function returns the next smaller
+    element in adjadent_lst.
+    """
     prior = []
 
     iter_adjacent_lst = iter(adjacent_lst)
@@ -38,7 +44,11 @@ def search_prior_indices(lst, adjacent_lst):
     return pd.Series(prior, index=lst)
 
 
-def search_posterior_indices(lst, adjacent_lst):
+def search_posterior_indices(lst: list, adjacent_lst: list):
+    """
+    For every object in lst, this function returns the next bigger
+    element in adjadent_lst.
+    """
     posterior = []
 
     iter_adjacent_lst = iter(adjacent_lst)
@@ -65,6 +75,10 @@ def search_posterior_indices(lst, adjacent_lst):
 
 
 def linearize_circle(p: float):
+    """
+    Given some level p, what proportion of a circle at unit
+    diameter is filled.
+    """
     r = 0.5
     area = np.pi * r**2
 
@@ -83,3 +97,46 @@ def linearize_circle(p: float):
         return (section_area - triangle_area) / area
     elif p > 0.5:
         return 0.5 + 0.5-linearize_circle(1-p)
+
+    
+def listfold(path):
+    """
+    Lists only folders in directory.
+    """
+    folder_names = os.listdir(path)
+    folder_names = [i for i in folder_names if "." not in i]
+    return folder_names
+
+flatten = lambda l: [item for sublist in l for item in sublist]
+
+def isolate_obj(x):
+    """
+    Returns string object from a list of lists.
+    Useful in combination with search_for()
+    """
+    while str not in [type(i) for i in x]:
+        x = flatten(x)
+        
+    for i in x:
+        if type(i) is str:
+            return i
+
+def search_for(x, start_path, last_instance=True):
+    """
+    Searches all folder for location with x in its name.
+    Returned format is weird, so wrap this function with isolate_obj()
+    """
+    folders = listfold(start_path)
+    subpaths = [start_path + "\\" + i for i in listfold(start_path)]
+    
+    if x not in folders:
+        path = [search_for(x, i, last_instance) for i in subpaths]
+
+    else:
+        path = start_path + "\\" + x
+        
+        last_path_folders = listfold(path)
+        if x in last_path_folders:
+            path = path + "\\" + x
+
+    return path
