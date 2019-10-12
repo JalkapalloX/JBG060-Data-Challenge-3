@@ -1,12 +1,11 @@
 from Utility.wrangling import cell_index
-
 import pandas as pd
 import geopandas as gpd
 from matplotlib import pyplot as plt
 import seaborn as sns
 import numpy as np
 import shapely.geometry
-import pyproj
+from shapely.geometry import LineString
 
 path = "C:/Users/20175825/OneDrive - TU Eindhoven/Data Science Bachelor Year 3/Data Challenge 3/waterschap-aa-en-maas_sewage_2019_NEW/"
 file = 'sewer_model/aa-en-maas_sewer_shp/Rioleringsdeelgebied.shp'
@@ -64,9 +63,6 @@ lookup_prediction(loc_pump(path + file, 'Haarsteeg'), rain_arr)
 ## Create grid
 ## ===============================
 
-import shapely.geometry
-import pyproj
-
 xmin =  -0.0185
 ymax = 48.9885
 ncols = 300
@@ -76,28 +72,61 @@ dy = 0.023
 xmax = -0.0185 + ncols * dx
 ymin = 48.9885 - nrows * dy
 
-# Set up projections
-p_ll = pyproj.Proj(init='epsg:4326')
-p_mt = pyproj.Proj(init='epsg:3857') # metric; same as EPSG:900913
+low = (5.0875, 51.3345)
+high = (6.0865, 51.8635)
 
-stepsize = 1000 # 1 km grid step size
+dx = 0.037
+dy = 0.023
 
-# Project corners to target projection
-low = pyproj.transform(p_ll, p_mt, xmin, ymin) # Transform point to 3857
-high = pyproj.transform(p_ll, p_mt, xmax, ymax) # .. same
-
-low, high
-
-# Iterate over 2D area
-gridpoints = []
+# Get vertical lines of grid
 x = low[0]
-for i in range(0, 10):  # test value
-    print(i)
+linestrings = []
+while x < high[0]:
     y = low[1]
+    gridpoints = []
+    i = 0
     while y < high[1]:
-        p = shapely.geometry.Point(pyproj.transform(p_mt, p_ll, x, y))
+        p = shapely.geometry.Point(x, y)
         gridpoints.append(p)
-        y += stepsize
-    x += stepsize
+        if i > 0:
+            A = gridpoints[i - 1]
+            B = gridpoints[i]
+            l = LineString([(A.x,A.y), (B.x,B.y)])
+            linestrings.append(l)
+        i += 1
+        y += dy
+    x += dx
 
-gridpoints
+# Get horizontal lines of grid
+y = low[1]
+linestrings2 = []
+while y < high[1]:
+    x = low[0]
+    gridpoints = []
+    i = 0
+    while x < high[0]:
+        p = shapely.geometry.Point(x, y)
+        gridpoints.append(p)
+        if i > 0:
+            A = gridpoints[i - 1]
+            B = gridpoints[i]
+            l = LineString([(A.x,A.y), (B.x,B.y)])
+            linestrings2.append(l)
+        i += 1
+        x += dx
+    y += dy
+
+
+system = loc_pump(path + file, 'Haarsteeg')
+tmpWGS84 = system.to_crs({'proj':'longlat', 'ellps':'WGS84', 'datum':'WGS84'})
+tmpWGS84["x"] = tmpWGS84["geometry"].to_crs({'init': 'epsg:4326'}).centroid.x
+tmpWGS84["y"] = tmpWGS84["geometry"].to_crs({'init': 'epsg:4326'}).centroid.y
+
+fig, ax = plt.subplots()
+tmpWGS84.plot(ax= ax)
+crs = {'init':'epsg:3857'}
+df = pd.DataFrame(linestrings, columns=['geometry'])
+gpd.GeoDataFrame(df, crs = crs, geometry = df['geometry']).plot(ax=ax)
+df2 = pd.DataFrame(linestrings2, columns=['geometry'])
+gpd.GeoDataFrame(df, crs = crs, geometry = df2['geometry']).plot(ax=ax, colormap = 'magma')
+plt.show()
