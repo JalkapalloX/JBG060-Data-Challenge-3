@@ -1,4 +1,5 @@
 from Utility.wrangling import cell_index
+from Utility.wrangling import vec_cell_index
 import pandas as pd
 import geopandas as gpd
 from matplotlib import pyplot as plt
@@ -6,6 +7,7 @@ import seaborn as sns
 import numpy as np
 import shapely.geometry
 from shapely.geometry import LineString
+from shapely.ops import linemerge, unary_union, polygonize
 
 path = "C:/Users/20175825/OneDrive - TU Eindhoven/Data Science Bachelor Year 3/Data Challenge 3/waterschap-aa-en-maas_sewage_2019_NEW/"
 file = 'sewer_model/aa-en-maas_sewer_shp/Rioleringsdeelgebied.shp'
@@ -63,20 +65,6 @@ lookup_prediction(loc_pump(path + file, 'Haarsteeg'), rain_arr)
 ## Create grid
 ## ===============================
 
-xmin =  -0.0185
-ymax = 48.9885
-ncols = 300
-nrows = 300
-dx = 0.037
-dy = 0.023
-xmax = -0.0185 + ncols * dx
-ymin = 48.9885 - nrows * dy
-
-low = (5.0875, 51.3345)
-high = (6.0865, 51.8635)
-
-dx = 0.037
-dy = 0.023
 def create_grid():
     low = (5.0875, 51.3345)
     high = (6.0865, 51.8635)
@@ -140,3 +128,44 @@ crs = {'init':'epsg:3857'}
 
 create_grid().plot()
 plt.show()
+
+
+def divide_areas(df):
+    """"Function that divides the areas in sewage system to cells corresponding to rain predictions
+    Input:
+    df: a Geopandas dataframe with areas in sewage system
+
+    Output:
+    Dataframe with areas split such that correct rain prediction can be chosen"""
+
+    tmpWGS84 = df.to_crs({'proj':'longlat', 'ellps':'WGS84', 'datum':'WGS84'})
+    grid = create_grid()
+    lst_new_areas = []
+    lst_ID = []
+    for j in range(0, tmpWGS84['geometry'].count()):
+        for i in range(0, grid['geometry'].count()):
+            if grid['geometry'][i].intersects(tmpWGS84['geometry'][j]): # Find all the combinations that intersect
+                try:
+                    line = grid['geometry'][i]
+                    poly = tmpWGS84['geometry'][j]
+                    merged = linemerge([poly.boundary, line])
+                    borders = unary_union(merged)
+                    polygons = polygonize(borders)
+                    for p in polygons:
+                        lst_ID.append(tmpWGS84['RGDIDENT'][j])
+                        lst_new_areas.append(p)
+                except:
+                    lst_new_areas.append(tmpWGS84['geometry'][j])
+                    lst_ID.append(tmpWGS84['RGDIDENT'][j])
+                    print('Did not do it right for', i, j)
+
+    df_divided = pd.DataFrame({'RGDIDENT': lst_ID, 'geometry': lst_new_areas})
+    crs = {'init': 'epsg:3857'}
+    df_out = gpd.GeoDataFrame(df_divided, crs = crs, geometry = df_divided['geometry'])
+    df_out = df_out.append(tmpWGS84.loc[~tmpWGS84['RGDIDENT'].isin(df_out['RGDIDENT'])][['RGDIDENT', 'geometry']],
+                       ignore_index=True)
+    df_out['x'] = df_out['geometry'].centroid.x
+    df_out['y'] = df_out['geometry'].centroid.y
+    df_out['area'] = df_out['geometry'].area
+    df_out['Cell'] = df_out.apply(lambda row: np.vectorize(cell_index(row['x'], row['y'])), axis=1)
+    return df_out
