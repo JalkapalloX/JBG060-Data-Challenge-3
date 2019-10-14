@@ -77,44 +77,56 @@ high = (6.0865, 51.8635)
 
 dx = 0.037
 dy = 0.023
+def create_grid():
+    low = (5.0875, 51.3345)
+    high = (6.0865, 51.8635)
 
-# Get vertical lines of grid
-x = low[0]
-linestrings = []
-while x < high[0]:
-    y = low[1]
-    gridpoints = []
-    i = 0
-    while y < high[1]:
-        p = shapely.geometry.Point(x, y)
-        gridpoints.append(p)
-        if i > 0:
-            A = gridpoints[i - 1]
-            B = gridpoints[i]
-            l = LineString([(A.x,A.y), (B.x,B.y)])
-            linestrings.append(l)
-        i += 1
-        y += dy
-    x += dx
+    dx = 0.037
+    dy = 0.023
+    crs = {'init': 'epsg:3857'}
 
-# Get horizontal lines of grid
-y = low[1]
-linestrings2 = []
-while y < high[1]:
+    # Get vertical lines of grid
     x = low[0]
-    gridpoints = []
-    i = 0
+    linestrings = []
     while x < high[0]:
-        p = shapely.geometry.Point(x, y)
-        gridpoints.append(p)
-        if i > 0:
-            A = gridpoints[i - 1]
-            B = gridpoints[i]
-            l = LineString([(A.x,A.y), (B.x,B.y)])
-            linestrings2.append(l)
-        i += 1
+        y = low[1]
+        gridpoints = []
+        i = 0
+        while y < high[1]:
+            p = shapely.geometry.Point(x, y)
+            gridpoints.append(p)
+            if i > 0:
+                A = gridpoints[i - 1]
+                B = gridpoints[i]
+                l = LineString([(A.x,A.y), (B.x,B.y)])
+                linestrings.append(l)
+            i += 1
+            y += dy
         x += dx
-    y += dy
+
+    # Get horizontal lines of grid
+    y = low[1]
+    linestrings2 = []
+    while y < high[1]:
+        x = low[0]
+        gridpoints = []
+        i = 0
+        while x < high[0]:
+            p = shapely.geometry.Point(x, y)
+            gridpoints.append(p)
+            if i > 0:
+                A = gridpoints[i - 1]
+                B = gridpoints[i]
+                l = LineString([(A.x,A.y), (B.x,B.y)])
+                linestrings2.append(l)
+            i += 1
+            x += dx
+        y += dy
+    df = pd.DataFrame(linestrings, columns=['geometry'])
+    df2 = pd.DataFrame(linestrings2, columns=['geometry'])
+    df = df.append(df2, ignore_index=True)
+    gpd_df = gpd.GeoDataFrame(df, crs=crs, geometry=df['geometry'])
+    return gpd_df
 
 
 system = loc_pump(path + file, 'Haarsteeg')
@@ -125,8 +137,6 @@ tmpWGS84["y"] = tmpWGS84["geometry"].to_crs({'init': 'epsg:4326'}).centroid.y
 fig, ax = plt.subplots()
 tmpWGS84.plot(ax= ax)
 crs = {'init':'epsg:3857'}
-df = pd.DataFrame(linestrings, columns=['geometry'])
-gpd.GeoDataFrame(df, crs = crs, geometry = df['geometry']).plot(ax=ax)
-df2 = pd.DataFrame(linestrings2, columns=['geometry'])
-gpd.GeoDataFrame(df, crs = crs, geometry = df2['geometry']).plot(ax=ax, colormap = 'magma')
+
+create_grid().plot()
 plt.show()
