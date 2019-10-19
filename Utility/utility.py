@@ -1,5 +1,34 @@
 import os
+import pandas as pd
+import numpy as np
+import datetime
 
+
+def linearize_circle(p: float):
+    """
+    Given some level p, what proportion of a circle at unit
+    diameter is filled.
+    """
+    r = 0.5
+    area = np.pi * r**2
+
+    if p == 0.5:
+        return 0.5
+    elif p == 1:
+        return 1
+    elif p == 0:
+        return 0
+    elif p < 0.5:
+        angle = np.arccos((r-p)/r) * 180 / np.pi * 2
+        section_area = area * angle / 360
+
+        triangle_area = (0.5-p) * np.sqrt(0.5**2-(0.5-p)**2)
+
+        return (section_area - triangle_area) / area
+    elif p > 0.5:
+        return 0.5 + 0.5-linearize_circle(1-p)
+
+    
 def reset_cumsum(lst, threshold=0, count=True):
     """
     Cummulative sum with reset at any value greater than the threshold.
@@ -72,32 +101,7 @@ def search_posterior_indices(lst: list, adjacent_lst: list):
             posterior += [adj_index]
 
     return pd.Series(posterior, index=lst)
-
-
-def linearize_circle(p: float):
-    """
-    Given some level p, what proportion of a circle at unit
-    diameter is filled.
-    """
-    r = 0.5
-    area = np.pi * r**2
-
-    if p == 0.5:
-        return 0.5
-    elif p == 1:
-        return 1
-    elif p == 0:
-        return 0
-    elif p < 0.5:
-        angle = np.arccos((r-p)/r) * 180 / np.pi * 2
-        section_area = area * angle / 360
-
-        triangle_area = (0.5-p) * np.sqrt(0.5**2-(0.5-p)**2)
-
-        return (section_area - triangle_area) / area
-    elif p > 0.5:
-        return 0.5 + 0.5-linearize_circle(1-p)
-
+    
     
 def listfold(path):
     """

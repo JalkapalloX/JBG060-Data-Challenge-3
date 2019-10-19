@@ -2,6 +2,20 @@ import pandas as pd
 import numpy as np
 import utility
 from scipy.signal import find_peaks
+import datetime
+import utility
+
+rg_spots = \
+{"Drunen":            (51.680344, 5.132245),
+ "Haarsteeg":         (51.711222, 5.200918),
+ "Elshout":           (51.700495, 5.142846),
+ "WWTP":              (51.720422, 5.281040),
+ "Bokhoven":          (51.736875, 5.233440),
+ "Engelen":           (51.720494, 5.272021),
+ "Maaspoort":         (51.719882, 5.290690),
+ "Helftheuvelweg":    (51.700226, 5.269245),
+ "Oude Engelenseweg": (51.697353, 5.290440),
+ "Rompert":           (51.711202, 5.311724)}
 
 
 def clean_mes_data(df, convert_timestamp=True, sort_timestamp=True, remove_duplicates=True, select_quality=True):
@@ -37,6 +51,12 @@ def merge_flow_level(flow_data, level_data):
 
 
 def fill_flow(flow_data):
+    flow_data.loc[flow_data["Value"].isna() &\
+                  (~flow_data["Value"].isna()).shift(1) &\
+                  (~flow_data["Value"].isna()).shift(-1), "Value"] = flow_data["Value"].shift()\
+                                                                            [flow_data["Value"].isna() &\
+                                                                             (~flow_data["Value"].isna()).shift(1) &\
+                                                                             (~flow_data["Value"].isna()).shift(-1)]
     flow_data["Value"] = flow_data["Value"].fillna(0)
 
     return flow_data
@@ -158,3 +178,70 @@ def summarize_rain_data(rain_data, area_data=None, village_code=None, dry_thresh
     rain_data["DrySeries"] = utility.reset_cumsum(rain_data["Total"], dry_threshold)
 
     return rain_data
+
+
+def grid_area(rain_grid, rg: str, padding=1, reduced=False):
+    
+    x, y = cell_index(rg_spots[rg][1], rg_spots[rg][0], reduced=reduced)
+    
+    coords = (x - padding, x + padding, y - padding, y + padding)
+    print(coords)
+    
+    return rain_grid[:, coords[0]:(coords[1]+1), coords[2]:(coords[3]+1)]
+
+
+def flow_by_hour(df, impute_range=False):
+    flow_data = df.copy()
+    
+    # 
+    flow_data["TimeSpan"] = flow_data["TimeStamp"].diff(1).apply(lambda i: i.seconds).fillna(5)
+    flow_data["TimeHour"] = flow_data["TimeStamp"].apply(lambda i: i.replace(minute=0, second=0))
+    flow_data["Flow"] = flow_data["Value"] / 3600 * flow_data["TimeSpan"]
+    
+    # 
+    flow_data = flow_data.groupby("TimeHour").aggregate({"Flow": np.sum, "DataQuality": np.mean, "TimeSpan": np.sum})
+    
+    if impute_range:
+        dt_range = pd.date_range(flow_data.index[0].floor('h'), flow_data.index[-1].floor('h'), freq='h')
+        flow_data = flow_data.reindex(dt_range)
+        flow_data["Flow"] = flow_data["Flow"].fillna(0)
+        flow_data["DataQuality"] = flow_data["DataQuality"].fillna(0)
+    
+    return flow_data.reset_index(drop=False).rename(columns={"index": "TimeHour"})
+
+
+def match_by_timestamp(rain_prediction, other_data, multiple=False, steps=3):
+    """
+    
+    """
+    # Omitting all negative rain predictions
+    rain_prediction[1][rain_prediction[1] < 0] = 0
+    
+    if multiple:
+        bool_1 = np.sum([(other_data["TimeHour"]-pd.Timedelta(hours=i)).isin(rain_prediction[0]["start"].shift(i))
+                         for i in range(steps)]
+                        , axis=0) > 1
+        other_data_indices = other_data["TimeHour"][bool_1]
+        
+    else:
+        bool_1 = other_data["TimeHour"].isin(rain_prediction[0]["start"])
+        other_data_indices = other_data["TimeHour"][bool_1]
+    
+    # Select common TimeStamps
+    shared_indices = np.intersect1d(rain_prediction[0]["start"].values, other_data_indices.values)
+    
+    # Get integer indices to use for rain_prediction
+    rp_indices = rain_prediction[0]["start"].reset_index(drop=False)\
+                                            .set_index("start")\
+                                            .reindex(shared_indices).values.flatten()
+    
+    if multiple:
+        grid = np.stack([rain_prediction[1][rp_indices-i] for i in range(steps)])
+    
+        grid = grid.reshape(grid.shape[0], grid.shape[1], grid.shape[2] * grid.shape[3])
+        grid = np.concatenate(grid, axis=1)
+    else:
+        grid = rain_prediction[1][rp_indices]
+        grid = grid.reshape(grid.shape[0], grid.shape[1] * grid.shape[2])
+    
+    return grid, other_data.set_index("TimeHour").reindex(shared_indices).reset_index(drop=False)
