@@ -1,3 +1,8 @@
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+# Loads data as provided by Aa-en-Maas in various ways.   #
+# BY SEBASTIAN DANNEHL                                    #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
 import pandas as pd
 import numpy as np
 import datetime
@@ -7,6 +12,7 @@ import pickle
 import utility
 
 
+# Codes of pumps
 pump_to_id_dict = {"Drunen": 8150,
                    "Haarsteeg": 8170,
                    "Oude Engelenseweg": 401,
@@ -16,7 +22,7 @@ pump_to_id_dict = {"Drunen": 8150,
                    "Maaspoort": 501}
 
 
-def get_measurements(path, convert_time=False):
+def get_measurements(path, convert_time=True):
     """
     Will read all measurement data from given path and store them in separate dataframes.
     ~~~ EXAMPLE CALL ~~~
@@ -45,7 +51,7 @@ def get_measurements(path, convert_time=False):
     return flow_data, level_data
 
 
-def load_all_pumps(path, convert_time=False):
+def load_all_pumps(path, convert_time=True):
     """
     Will read all measurement data from given path and store them in separate dataframes.
     The format of all data sources is standardized.
@@ -160,7 +166,7 @@ def get_rain_prediction(path, from_date=None, to_date=None, reduce_grid=False):
     end_date = pd.Series(pd.to_datetime([i.split("_")[4][:20] for i in files if ".aux" not in i]))
     
     if reduce_grid:                                            #Y: 51.830-51.321 X: 5.068-6.048
-        data = np.array([np.loadtxt(path + "/" + i, skiprows=7)[91:(195+1) ,101:(223+1)]
+        data = np.array([np.loadtxt(path + "/" + i, skiprows=7)[91:(195+1), 101:(223+1)]
                          for i in files if ".aux" not in i])
     else:
         data = np.array([np.loadtxt(path + "/" + i, skiprows=7) for i in files if ".aux" not in i])
@@ -171,7 +177,7 @@ def get_rain_prediction(path, from_date=None, to_date=None, reduce_grid=False):
     return date_data, data
 
 
-def get_rain(path, convert_time=False):
+def get_rain(path, convert_time=True):
     """
     Will read all rain data from given path and store them in a single dataframe.
     ~~~ EXAMPLE CALL ~~~
@@ -356,6 +362,9 @@ class get_db:
     ~~~~~ EXAMPLE CALLS ~~~~~
     get_db(path=r"D:\DC3", folder_tags=["RG8180_L0", "data_pump_level"]) # Creating pickles
     data = get_db.load(path=r"D:\DC3\Full Project", tags=["RG8180_L0", "data_pump_level"])
+    
+    (!) IMPORTANT NOTE: CURRENTLY STORING THE PICKLE IS CORRUPTED THUS THE
+    FUNCTION IS DEPRECATED.
     """
     def __init__(self, path: str=None, folder_tags: list=None, dump_path: str=None):
         
@@ -363,16 +372,21 @@ class get_db:
         if dump_path is None:
             dump_path=""
         else:
-            directory = os.path.dirname(dump_path)
-            if not os.path.exists(directory):
-                os.makedirs(directory)
+            if not os.path.exists(dump_path):
+                os.makedirs(dump_path)
         
         # GET FOLDER LOCATIONS OF TAGS
         folder_locs = [utility.isolate_obj(utility.search_for(i, path, last_instance=True)) for i in folder_tags]
         
         # SAVE TAGGED DATA AS PICKLE
         for i, j in zip(folder_locs, folder_tags):
-            data = load_all_pumps(i, convert_time=True)
+            if "knmi.harmonie_2018-01-01_2019-08-29" in j:
+                data = get_rain(i, convert_time=True)
+            elif "rain_grid_prediction" in j:
+                data = get_rain_prediction(i, reduce_grid=True)
+            else:
+                data = load_all_pumps(i, convert_time=True)
+
             get_file().save(obj=data, path=dump_path + j)
     
     def load(path: str, tags: list):

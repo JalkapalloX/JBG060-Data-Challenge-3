@@ -1,3 +1,9 @@
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+# Objective: Find the cell in the rain prediction grid    #
+# corresponding to the centroid of an area.               #
+# BY SEBASTIAN DANNEHL                                    #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
 import pandas as pd
 import geopandas as gpd
 import numpy as np

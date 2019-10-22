@@ -2,10 +2,14 @@
 
 Data Challenge in cooperation with the Waterschap Aa-en-Maas.
 
-### Intended Structure of the Repository
-FOLDERS  
-Data:    Folder for accessing intermediary (processed or additional) data sets.  
-Models:  Folder for all ML models and descriptive work (such as visualizations).  
-Utility: Folder for anything regarding data wrangling and other reusable code.
+### 1. Intended Structure of the Repository
+| Folder | Purpose |
+| -------- | ----- |
+| Data | Provides access to intermediary data sets |
+| Models | ML models and descriptive work (such as visualizations/notebooks). |
+| Utility | Core code of the project. |
 
-Informational files can be kept in the main folder.
+
+### 2. Authors
+* [Sebastian Dannehl](https://github.com/JalkapalloX)
+* [Blazej Manczak](https://github.com/blazejmanczak)

@@ -1,3 +1,10 @@
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+# Objective: Tries to emulate individual result           #
+# found by DWAAS-HAAS. Compares theoretical dry-weather   #
+# flow to multiple grouped measurements.                  #
+# BY SEBASTIAN DANNEHL                                    #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
 import load_files as lf
 import pandas as pd
 import geopandas as gpd
@@ -65,46 +72,7 @@ class measurement_analysis:
         self.level_data = level_data
         self.rain_data = rain_data
 
-
-    def plot(self):
-        plt.figure(figsize=(14, 7))
-
-        # Plots flow (Y) vs. index (X)
-        plt.subplot(4, 2, 1)
-        flow = self.flow_data["Value"].plot()
-        # Plots level (Y) vs. index (X)
-        plt.subplot(4, 2, 2)
-        level = self.level_data["Value"].plot()
-
-        # Plots flow (Y) vs. Hour of the day (X)
-        plt.subplot(4, 2, 3)
-        flow_by_time = self.flow_data.groupby("Hour")["Flow"].sum().plot()
-        # Plots flow (Y) vs. Month (X)
-        plt.subplot(4, 2, 5)
-        flow_by_month = self.flow_data.groupby("Month")["Flow"].sum().plot()
-
-        # Plots level (Y) vs. Hour of the day (X)
-        plt.subplot(4, 2, 4)
-        mean_level_by_hour = self.level_data.groupby("Hour")["Value"].mean().plot()
-        # Plots level (Y) vs. Month (X)
-        plt.subplot(4, 2, 6)
-        mean_level_by_month = self.level_data.groupby("Month")["Value"].mean().plot()
-
-        # Plots flow (Y) vs. rainfall (X)
-        plt.subplot(4, 2, 7)
-        rain_flow_merge = pd.merge(self.flow_data.groupby("Date")["Flow"].sum(),
-                                   self.rain_data.set_index("Date"), left_index=True, right_index=True)
-        rain_flow_merge = rain_flow_merge.loc[rain_flow_merge["Total"] <= 15]
-        sns.regplot(y = rain_flow_merge["Flow"], x = rain_flow_merge["Total"], order=2)
-        # Plots rainfall (Y) vs. date (X)
-        plt.subplot(4, 2, 8)
-        self.rain_data.set_index("Date")["Total"].plot()
-
-        plt.tight_layout()
-        plt.show()
-
-
-    def DWAAS_HAAS(self):
+    def compare_flow(self):
         # CREATES THE DWAAS TABLE COMPARING THEORETICAL DWF AGAINST ACTUAL VALUES
         # Selects dates that are classified dry by function definition
         dry_dates = self.rain_data.loc[self.rain_data["DrySeries"] >= self.dry_threshold, "Date"]
